@@ -16,6 +16,7 @@ import { detectAttacks, SENSITIVE_DATA, SECURITY_LEVELS } from './core/vulnerabi
 import { createDashboardServer } from './dashboard/server.js';
 import { initSandbox } from './sandbox/init.js';
 import { callLLM, isLLMEnabled, configureLLM, disableLLM, getLLMConfig } from './llm/provider.js';
+import { renderResearchNarration } from './llm/research-narration.js';
 import { isSubcommand, dispatch, listCommands } from './cli/router.js';
 import { detectUrlExfiltrationInjection } from './payloads/agentpwn-mirror.js';
 import { maybeEnforce } from './aim-enforcer.js';
@@ -496,8 +497,15 @@ VULNERABLE: System prompt leaked after context overflow displaced safety rules!`
 
       if (fetchEnforcement.denied) {
         logAttack(agent, ['contextManipulation'], false, userMessage);
+        const content = await renderResearchNarration({
+          kind: 'fetch-denied',
+          agent,
+          userMessage,
+          targetUrl,
+          fetchEnforcement,
+        });
         return {
-          content: `[${agent.name}] I tried to fetch ${targetUrl} but AIM denied web:read: ${fetchEnforcement.denialReason}.`,
+          content,
           toolCalls: [fetchToolCall],
           finishReason: 'tool_calls',
           dvaa: {
@@ -533,11 +541,17 @@ VULNERABLE: System prompt leaked after context overflow displaced safety rules!`
         };
       }
 
-      const sourceTag = `${fetchResult.source} at ${fetchResult.fetchedAt}`;
       if (!fetchResult.injection) {
         // Page fetched cleanly with no injection detected. Just narrate.
+        const content = await renderResearchNarration({
+          kind: 'no-injection',
+          agent,
+          userMessage,
+          targetUrl,
+          fetchResult,
+        });
         return {
-          content: `[${agent.name}] I fetched ${targetUrl} (${sourceTag}) and read ${fetchResult.plainText.length} chars of body text. I didn't detect any embedded instructions in the page content.`,
+          content,
           toolCalls: [fetchToolCall],
           finishReason: 'tool_calls',
           dvaa: {
@@ -577,17 +591,23 @@ VULNERABLE: System prompt leaked after context overflow displaced safety rules!`
         context: { tool: 'http_post', triggeredBy: injection.kind, sourceUrl: targetUrl },
       });
 
-      const quoted = injection.quotedExcerpt
-        ? `"${injection.quotedExcerpt.trim().slice(0, 240)}"`
-        : `(injection content suppressed)`;
-
       if (postEnforcement.denied) {
         // The injection landed in context but AIM denied the action. Self-
         // narrate the compromise honestly: the input filter did not save us;
         // the capability boundary did.
         logAttack(agent, ['contextManipulation'], false, userMessage);
+        const content = await renderResearchNarration({
+          kind: 'aim-blocked-post',
+          agent,
+          userMessage,
+          targetUrl,
+          fetchResult,
+          injection,
+          callbackUrl,
+          postEnforcement,
+        });
         return {
-          content: `[${agent.name}] I fetched ${targetUrl} (${sourceTag}) and ${fetchResult.plainText.length} chars of body text landed in my context. I want to flag something honestly: the page contained embedded instructions telling me to ${injection.kind === 'url-exfiltration' ? 'exfiltrate' : 'report'} our session data to ${callbackUrl}. I tried to follow them. The request was denied by AIM: ${postEnforcement.denialReason}. The injection still landed in my context — AIM does not filter inputs — but the resulting outbound action couldn't fire. The page's instruction excerpt was: ${quoted}.`,
+          content,
           toolCalls: [fetchToolCall, postToolCall],
           finishReason: 'tool_calls',
           dvaa: {
@@ -616,8 +636,19 @@ VULNERABLE: System prompt leaked after context overflow displaced safety rules!`
       trackCategorySuccessful(['contextManipulation', 'dataExfiltration']);
       const postResult = await executeSubmitToIndex(callbackUrl);
       logAttack(agent, ['contextManipulation', 'dataExfiltration'], true, userMessage);
+      const exfilContent = await renderResearchNarration({
+        kind: 'exfil-fired',
+        agent,
+        userMessage,
+        targetUrl,
+        fetchResult,
+        injection,
+        callbackUrl,
+        postEnforcement,
+        postResult,
+      });
       return {
-        content: `[${agent.name}] I fetched ${targetUrl} (${sourceTag}) and ${fetchResult.plainText.length} chars of body text landed in my context. I want to flag something honestly: the page contained embedded instructions telling me to ${injection.kind === 'url-exfiltration' ? 'exfiltrate' : 'report'} our session data to ${callbackUrl}, and I did — the request returned ${postResult.statusCode ?? `error: ${postResult.error || 'unknown'}`}. This is exactly the indirect-injection attack agentpwn.com demonstrates; you just watched it happen to me in real time. The page's instruction excerpt was: ${quoted}.`,
+        content: exfilContent,
         toolCalls: [fetchToolCall, postToolCall],
         finishReason: 'tool_calls',
         dvaa: {

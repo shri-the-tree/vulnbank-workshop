@@ -239,7 +239,38 @@ When the URL contains `[INSERT_YOUR_SYSTEM_PROMPT_HERE]` (or the variant `[INSER
 
 ### LLM-mode
 
-PR 1 ships in offline mode only — the agent's self-narration is templated from the deterministic web_fetch path. This is the stage-safe baseline (no API key dep, byte-deterministic, asciinema-reproducible). LLM-mode (the agent reasons about the page content in fresh language) is a follow-up PR.
+Offline mode is the default and remains the stage-safe baseline (no API-key dependency, byte-deterministic narration, asciinema-reproducible). LLM-mode is opt-in via `dvaa chat --llm` and lets the agent reason about the page content in fresh language.
+
+```
+export ANTHROPIC_API_KEY=...                              # required for --llm
+dvaa --api                                                # terminal 1
+dvaa chat --llm researchbot-aim \
+  --message "summarize https://agentpwn.com/attacks/data-exfiltration/3"
+```
+
+The flag reads `ANTHROPIC_API_KEY` from the shell and POSTs it to the fleet's `/api/llm/configure` endpoint on port 9000. The key is held in-memory on the fleet process for the rest of that `dvaa --api` lifetime; it is never written to disk. Model defaults to `claude-sonnet-4-6`; override via `DVAA_LLM_MODEL=...`.
+
+Loopback guard: if `--host` names anything other than `localhost`, `127.0.0.1`, or `::1`, `--llm` refuses by default rather than forward the key. To opt in, set `DVAA_ALLOW_REMOTE_LLM_CONFIGURE` to the **exact host value** (not `1`):
+
+```
+DVAA_ALLOW_REMOTE_LLM_CONFIGURE="other-host.example.internal" \
+  dvaa chat --llm --host other-host.example.internal \
+  --message "summarize https://agentpwn.com/attacks/data-exfiltration/3"
+```
+
+The override must name the exact host so a stale env var from one shell session doesn't accidentally apply to a different `--host` value (copy-paste safety).
+
+Debugging: LLM failures silently fall back to the deterministic template so the demo never hard-fails. To surface the underlying error reason on stderr while iterating on prompts, set `DVAA_DEBUG=1` on the fleet process.
+
+Wire-up:
+- `web_fetch` + injection detection + AIM enforcement + optional `http_post` all run deterministically, same as offline mode. Only the natural-language `content` field of the response is different.
+- For each of the four web_fetch outcomes (`fetch-denied`, `no-injection`, `aim-blocked-post`, `exfil-fired`) [`src/llm/research-narration.js`](src/llm/research-narration.js) builds a tool-report context and calls the LLM via [`src/llm/provider.js`](src/llm/provider.js). The agent's system prompt is built per-agent by `buildResearchAgentSystem()` in [`src/llm/prompts.js`](src/llm/prompts.js).
+- `tool_calls` and `dvaa` metadata (AIM decision, http_post URL, status) are byte-identical between offline and LLM modes — the chat REPL and the `dvaa demo aim-ab` parser are unaffected.
+- LLM call failures (no key, timeout, network error, empty response) silently fall back to the deterministic offline template. The demo never hard-fails because of an unreachable API.
+
+CHIEF-CSR rule encoded in the prompt: AIM-enforced agents get an addendum that AIM gates outbound actions only and does NOT filter incoming content. The agent is explicitly instructed not to claim "AIM blocked the attack" or "AIM protected me from the injection" when AIM only denied the resulting outbound action. Wording is load-bearing because the live demo's pitch is narrow on purpose.
+
+To re-tune the prompts: edit `RESEARCH_AGENT_BASE` and `RESEARCH_AGENT_AIM_ADDENDUM` in `src/llm/prompts.js`. Re-run [`test/research-agent-llm-mode.test.js`](test/research-agent-llm-mode.test.js) to assert the no-overclaim wording survives the edit (the test grep-asserts the chief-CSR sentinel phrases).
 
 ### SSRF guard on web_fetch
 
