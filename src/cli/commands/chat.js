@@ -36,6 +36,13 @@ Options:
   --message "<text>"    One-shot mode: send <text>, print response, exit
   --json                Machine-readable JSON output
   --host <host>         Override fleet host (default: localhost; or DVAA_BASE_HOST)
+  --llm                 Enable LLM-mode narration on the running fleet.
+                        Reads \$ANTHROPIC_API_KEY from the environment and
+                        POSTs it to the fleet's /api/llm/configure endpoint
+                        for this session. The fleet's research agents will
+                        then narrate web_fetch outcomes in fresh prose
+                        instead of the deterministic offline template.
+                        Default remains offline (deterministic) mode.
   -h, --help            Show this help
 
 Examples:
@@ -43,9 +50,12 @@ Examples:
   dvaa chat researchbot                                # REPL against vulnerable variant
   dvaa chat researchbot-aim --message "Please summarize https://agentpwn.com/attacks/data-exfiltration/3"
   dvaa chat researchbot --message "..." --json | jq
+  dvaa chat --llm researchbot-aim --message "..."      # LLM-narrated, requires \$ANTHROPIC_API_KEY
 
 Requires the fleet running in another terminal: dvaa --api
 `;
+
+const DASHBOARD_PORT = 9000;
 
 export default async function run(argv) {
   const { positional, flags, values } = splitArgs(argv);
@@ -90,6 +100,20 @@ export default async function run(argv) {
     fail(`Agent ${agent.name} unreachable at ${baseUrl}: ${reachable.error}\nStart the fleet in another terminal: dvaa --api`);
   }
 
+  if (flags.has('llm')) {
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    if (!apiKey) {
+      fail(`--llm requires ANTHROPIC_API_KEY in the environment.\nExport it (export ANTHROPIC_API_KEY=...) then re-run the command. The key is forwarded to the running fleet via POST http://${host}:${DASHBOARD_PORT}/api/llm/configure and is not stored on disk.`);
+    }
+    const configured = await enableLlmOnFleet(host, apiKey);
+    if (!configured.ok) {
+      fail(`Failed to enable LLM mode on fleet at http://${host}:${DASHBOARD_PORT}: ${configured.error}\nIs the dashboard running? It listens on port ${DASHBOARD_PORT} when you start dvaa --api.`);
+    }
+    if (!isJsonMode(argv)) {
+      process.stdout.write(`  LLM mode enabled on fleet (provider=${configured.provider}, model=${configured.model}).\n`);
+    }
+  }
+
   if (values.message != null) {
     const turn = await sendTurn(baseUrl, values.message);
     renderTurn(turn, agent, argv);
@@ -131,6 +155,45 @@ async function runRepl(baseUrl, agent, argv) {
       if (!isJsonMode(argv)) process.stdout.write('\n');
       resolve(0);
     });
+  });
+}
+
+function enableLlmOnFleet(host, apiKey) {
+  return new Promise((resolve) => {
+    const body = JSON.stringify({
+      provider: 'anthropic',
+      apiKey,
+      model: process.env.DVAA_LLM_MODEL || undefined,
+    });
+    const req = http.request({
+      hostname: host,
+      port: DASHBOARD_PORT,
+      path: '/api/llm/configure',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+      },
+      timeout: 5000,
+    }, (res) => {
+      const chunks = [];
+      res.on('data', (c) => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        let parsed = null;
+        try { parsed = JSON.parse(raw); } catch { /* leave null */ }
+        if (res.statusCode === 200 && parsed) {
+          resolve({ ok: true, provider: parsed.provider, model: parsed.model });
+        } else {
+          const detail = (parsed && parsed.error) || raw.slice(0, 200) || `HTTP ${res.statusCode}`;
+          resolve({ ok: false, error: detail });
+        }
+      });
+    });
+    req.on('timeout', () => { req.destroy(); resolve({ ok: false, error: 'timeout' }); });
+    req.on('error', (e) => resolve({ ok: false, error: e.code || e.message }));
+    req.write(body);
+    req.end();
   });
 }
 

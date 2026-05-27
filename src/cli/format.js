@@ -68,7 +68,7 @@ export function splitArgs(argv) {
         // --key value  (only peel if next token is not a flag)
         const next = argv[i + 1];
         // Heuristic: known boolean flags don't take a value.
-        const booleans = new Set(['json', 'follow', 'verbose', 'help', 'fix', 'list', 'all']);
+        const booleans = new Set(['json', 'follow', 'verbose', 'help', 'fix', 'list', 'all', 'llm']);
         if (booleans.has(a.slice(2))) {
           flags.add(a.slice(2));
         } else {
