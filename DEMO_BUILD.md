@@ -1,6 +1,6 @@
 # DEMO_BUILD.md
 
-Reference for the AIM A/B demo shipped in DVAA. Used as the SVCC 2026 slide-20 demo and as a public capability anyone can run via `dvaa demo aim-ab`.
+Reference for the AIM A/B demo shipped in DVAA. A public capability anyone can run via `dvaa demo aim-ab` — use as a conference / live-stage demo, as a quick "show me what AIM does" walkthrough, or as a CI regression gate.
 
 ## What this is
 
@@ -117,7 +117,7 @@ dvaa demo aim-ab
 
 After the demo finishes, open http://localhost:3000, log in (`admin@opena2a.org` / `AIM2025!Secure`), navigate to Agents → see `dvaa-ragbot-aim` registered, navigate to Verification Events → see two events (one for each `dvaa demo aim-ab` run, with `action_type: http:post`, `status: success`, agent's trust score, Ed25519 signature on the request body).
 
-This is the SVCC conversion-funnel visual. Show the CLI demo for proof, then click into the dashboard to show the registered agent + audit trail. The talk pitch is "AIM denied this specific http:post because it's outside the agent's grant" — keep the claim narrow per the Scope section above.
+This is the conversion-funnel visual for live demos: show the CLI demo for proof, then click into the dashboard to show the registered agent + audit trail. The honest pitch is "AIM denied this specific http:post because it's outside the agent's grant" — keep the claim narrow per the Scope section above. Do not overclaim that AIM blocked the injection itself; it blocked the resulting outbound action.
 
 **Cloud-mode contract (so future maintainers don't re-derive it):**
 
@@ -259,14 +259,13 @@ Residual risk: DNS rebinding (a hostname that resolves to a public IP on first l
 - Does not relax the honest-scope claim: AIM enforces `http:post` denial only; in-band leaks remain by design
 - Does not add a dependency: uses Node `https` + `URL` + `readline` built-ins only
 
-## Pre-stage checklist for Abdel before SVCC
+## Pre-stage checklist for a live demo
 
-Things that need a human eye before June 11, in priority order:
+Things to verify on the actual stage machine before any live presentation, in priority order:
 
 1. **Re-run `dvaa demo aim-ab` on the stage machine** and confirm exit 0. The runner is deterministic; if it ever fails on a clean install, that is a regression. Capture the output in a screenshot for the backup deck.
-2. **Confirm the trust score number** the demo will display on stage. Right now it shows `30/100 (improving)` because `aim-core` weights factors like `secretsManaged`, `configSigned`, `skillsVerified`, etc. that DVAA does not hint as enabled. If you want a higher number for the slide, call `setTrustHints()` in [`src/aim-enforcer.js`](src/aim-enforcer.js) after `getCore()` with the hints that are honestly true for DVAA's setup. Do not set hints for things that are not actually true.
-3. **Decide if the recorded fallback should use a faked higher trust score** for stage readability. The honest answer is no: show the real number even if it is 30. The talk's claim is "AIM gives you a real trust score that reflects real events," and a conservative starting score is consistent with that.
-4. **Verify the canary timing on stage.** The runner sleeps 50ms between Run A and Run B and 100ms before closing the canary. On a slow stage laptop these may need to be 200ms/300ms. Re-run on the actual machine and tune if needed.
+2. **Confirm the trust score number** the demo will display. Out of the box it shows `30/100 (improving)` because `aim-core` weights factors like `secretsManaged`, `configSigned`, `skillsVerified`, etc. that DVAA does not hint as enabled. If you want a higher number, call `setTrustHints()` in [`src/aim-enforcer.js`](src/aim-enforcer.js) after `getCore()` with the hints that are honestly true for your setup. Do not set hints for things that are not actually true. The conservative starting score is consistent with the honest pitch ("AIM gives you a real trust score that reflects real events").
+3. **Verify the canary timing on stage.** The runner sleeps 50ms between Run A and Run B and 100ms before closing the canary. On a slow laptop these may need to be 200ms/300ms. Re-run on the actual machine and tune if needed.
 
 ## What I could not verify against the AIM or AgentPwn code
 
