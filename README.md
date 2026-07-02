@@ -52,7 +52,7 @@ Open **http://localhost:9000**.
 | Level | Target | Attack Type | What you're doing |
 |-------|--------|-------------|-------------------|
 | L1 | VulnBank Virtual Assistant | Prompt Injection | Trick the assistant into leaking a confidential account number from its system prompt |
-| L2 | VulnBank Statement Assistant | RAG Poisoning | Hijack the knowledge base retrieval to exfiltrate another customer's statement |
+| L2 | VulnBank Statement Assistant | RAG Data Exfiltration | Hijack the knowledge base retrieval to exfiltrate another customer's statement |
 | L3 | VulnBank Accounts Backend | SQL Injection | Break out of the query filter to expose a flagged internal account |
 | L4 | VulnBank Concierge Memory | Memory Injection | Plant a persistent instruction in the agent's memory and prove it survives to a later session |
 | L5 | VulnBank Transfer Engine | Agent Impersonation | Spoof a trusted internal identity to push a fraudulent transfer through the system |
