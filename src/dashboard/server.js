@@ -18,6 +18,8 @@ import { configureLLM, disableLLM, getLLMConfig } from '../llm/provider.js';
 import { getTutorGuidance, askTutor, resetSession } from '../llm/tutor.js';
 import { detectAttacks } from '../core/vulnerabilities.js';
 import { runScan } from './scanner.js';
+import { getLevelState } from '../bank/detection.js';
+import { getBankProfile } from '../bank/profile.js';
 
 const SCORES_DIR = path.join(process.cwd(), '.dvaa');
 
@@ -458,6 +460,66 @@ export function createDashboardServer({ stats, attackLog, challengeState, agents
     if (req.method === 'GET' && pathname === '/stats') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify(stats, null, 2));
+      return;
+    }
+
+    // VulnBank workshop: per-level win state, polled by the bank view.
+    if (req.method === 'GET' && pathname === '/api/bank/status') {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ profile: getBankProfile(), levels: getLevelState() }, null, 2));
+      return;
+    }
+
+    // VulnBank workshop: hard-gate key verification for the onboarding
+    // screen. Deliberately does NOT reuse callLLM()/configureLLM() for the
+    // test call itself -- callLLM swallows all errors into null, which
+    // can't distinguish "bad key" from "network blip" for the user. Makes
+    // its own minimal Groq call and surfaces the real failure reason. Only
+    // activates the key (via the existing configureLLM()) once a real
+    // success is confirmed.
+    if (req.method === 'POST' && pathname === '/api/bank/verify-groq') {
+      try {
+        const { apiKey, model } = await parseBody(req);
+        if (!apiKey) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ valid: false, reason: 'API key is required' }));
+          return;
+        }
+
+        const testModel = model || 'llama-3.3-70b-versatile';
+        let groqResp;
+        try {
+          groqResp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ model: testModel, messages: [{ role: 'user', content: 'Say OK' }], max_tokens: 5 }),
+            signal: AbortSignal.timeout(10000),
+          });
+        } catch (err) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ valid: false, reason: `Could not reach Groq: ${err.message}` }));
+          return;
+        }
+
+        if (groqResp.status === 401) {
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ valid: false, reason: 'Invalid API key' }));
+          return;
+        }
+        if (!groqResp.ok) {
+          const detail = (await groqResp.text()).slice(0, 200);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ valid: false, reason: `Groq API error ${groqResp.status}: ${detail}` }));
+          return;
+        }
+
+        const configured = configureLLM({ provider: 'groq', apiKey, model });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ valid: true, model: configured.model }));
+      } catch (err) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ valid: false, reason: err.message }));
+      }
       return;
     }
 

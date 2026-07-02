@@ -414,6 +414,11 @@ const MODEL_OPTIONS = {
     { value: 'claude-sonnet-4-5-20250929', label: 'Claude Sonnet 4.5 (Recommended, ~$0.03/test)' },
     { value: 'claude-opus-4-6', label: 'Claude Opus 4.6 (Most Capable, ~$0.10/test)' },
     { value: 'claude-haiku-4-5-20251001', label: 'Claude Haiku 4.5 (Fastest, ~$0.01/test)' }
+  ],
+  groq: [
+    { value: 'llama-3.3-70b-versatile', label: 'Llama 3.3 70B Versatile (Recommended, free tier)' },
+    { value: 'llama-3.1-8b-instant', label: 'Llama 3.1 8B Instant (Fastest, free tier)' },
+    { value: 'openai/gpt-oss-120b', label: 'GPT-OSS 120B (Most Capable, free tier)' }
   ]
 };
 
@@ -439,7 +444,8 @@ function updateStatusText() {
     statusText.textContent = 'Learning Mode';
     statusText.style.color = 'var(--green)';
   } else {
-    const providerText = llmSettings.provider === 'openai' ? 'OpenAI' : 'Claude';
+    const providerLabels = { openai: 'OpenAI', anthropic: 'Claude', groq: 'Groq' };
+    const providerText = providerLabels[llmSettings.provider] || llmSettings.provider;
     statusText.textContent = `Production: ${providerText}`;
     statusText.style.color = 'var(--amber)';
   }

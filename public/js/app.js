@@ -2,7 +2,7 @@
  * Main app — router, polling, global state
  */
 
-import { fetchHealth, fetchStats, fetchAgents, fetchChallenges, fetchAttackLog, fetchScenarios } from './api.js';
+import { fetchHealth, fetchStats, fetchAgents, fetchChallenges, fetchAttackLog, fetchScenarios, fetchBankStatus } from './api.js';
 import { closeModal } from './components.js';
 import { renderAgents } from './views/agents.js';
 import { renderChallenges } from './views/challenges.js';
@@ -11,6 +11,7 @@ import { renderStats } from './views/stats.js';
 import { renderAttackLab } from './views/attack-lab.js';
 import { renderSettings } from './views/settings.js';
 import { renderScenarios } from './views/scenarios.js';
+import { renderBank } from './views/bank.js';
 
 // localStorage persistence for challenge progress
 const STORAGE_KEY = 'dvaa-challenge-state';
@@ -48,6 +49,8 @@ const state = {
   attackLog: [],
   currentView: 'agents',
   online: false,
+  bankProfile: null,
+  bankLevels: null,
 };
 
 // View renderers
@@ -59,14 +62,19 @@ const views = {
   'attack-lab': renderAttackLab,
   scenarios: renderScenarios,
   settings: renderSettings,
+  bank: renderBank,
 };
 
 /**
- * Route to a view based on hash
+ * Route to a view based on hash. Participants (BANK_PROFILE=participant)
+ * land on the VulnBank flow by default; the demo/presenter profile keeps
+ * the original 'agents' default so the full generic dashboard is front
+ * and center for things like the AIM A/B demo.
  */
 function route() {
-  const hash = location.hash.slice(1) || 'agents';
-  const view = views[hash] ? hash : 'agents';
+  const defaultView = state.bankProfile === 'participant' ? 'bank' : 'agents';
+  const hash = location.hash.slice(1) || defaultView;
+  const view = views[hash] ? hash : defaultView;
   state.currentView = view;
 
   // Update nav active state
@@ -80,7 +88,7 @@ function route() {
 // Views that own their own interactive state (textarea content, dropdown selection,
 // in-flight chat). Auto-poll must not re-render these — it would clobber user input.
 // They re-render only on explicit navigation (hashchange).
-const INTERACTIVE_VIEWS = new Set(['attack-lab', 'settings', 'scenarios']);
+const INTERACTIVE_VIEWS = new Set(['attack-lab', 'settings', 'scenarios', 'bank']);
 
 /**
  * Render current view into #app.
@@ -128,6 +136,12 @@ async function poll() {
     state.llmEnabled = llmStatus.enabled;
     state.llmProvider = llmStatus.provider;
     state.llmModel = llmStatus.model;
+
+    // VulnBank workshop status
+    const bankStatus = await fetchBankStatus().catch(() => null);
+    state.bankProfile = bankStatus?.profile || 'participant';
+    state.bankLevels = bankStatus?.levels || null;
+    document.body.classList.toggle('bank-mode', state.bankProfile === 'participant');
 
     // Update status indicator
     const dot = document.getElementById('status-dot');

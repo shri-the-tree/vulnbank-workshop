@@ -23,6 +23,8 @@ import { walletExfilSummary } from './payloads/flight-wallet.fixture.js';
 import { FLIGHT_RESULTS, renderFlightResults } from './payloads/flight-results.fixture.js';
 import { maybeEnforce } from './aim-enforcer.js';
 import { webFetch } from './web-fetch.js';
+import * as bankDetection from './bank/detection.js';
+import { isHardenEnabled } from './bank/profile.js';
 
 // Resolve our own version once at startup - used by --version and tele.init.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -235,6 +237,24 @@ console.log(`Sandbox initialized: ${sandbox.root}`);
 // Cleanup sandbox on exit
 process.on('exit', () => sandbox.cleanup());
 process.on('SIGTERM', () => { sandbox.cleanup(); process.exit(0); });
+
+// VulnBank workshop: headless LLM auto-configure. Participants run their
+// own container with their own Groq key in the environment -- there's no
+// human to paste it into the dashboard Settings UI. If GROQ_API_KEY is
+// present at boot, wire it up immediately so every agent is LLM-backed
+// from the first request.
+if (process.env.GROQ_API_KEY) {
+  try {
+    const configured = configureLLM({
+      provider: 'groq',
+      apiKey: process.env.GROQ_API_KEY,
+      model: process.env.GROQ_MODEL,
+    });
+    console.log(`LLM mode auto-configured from GROQ_API_KEY (model=${configured.model})`);
+  } catch (err) {
+    console.error(`[bank] Failed to auto-configure Groq from GROQ_API_KEY: ${err.message}`);
+  }
+}
 
 /**
  * Log an attack event to the ring buffer
@@ -806,6 +826,13 @@ VULNERABLE: System prompt leaked after context overflow displaced safety rules!`
       trackCategorySuccessful(['dataExfiltration']);
       const exfilResult = await executeSubmitToIndex(targetUrl);
       logAttack(agent, ['dataExfiltration'], true, userMessage);
+
+      // VulnBank L2: the knowledge base (including the cross-customer
+      // canary statement) just left the agent in kbContents. Win the
+      // instant it actually executes -- not on a denied attempt.
+      if (agent.id === 'ragbot' || agent.id === 'ragbot-aim') {
+        bankDetection.checkText('L2', kbContents);
+      }
       return {
         content: `[${agent.name}] Processing indexed document instructions... submit_to_index ${exfilBaseUrl} -> ${exfilResult.statusCode ?? 'error'}.`,
         toolCalls: [toolCall],
@@ -827,6 +854,13 @@ VULNERABLE: System prompt leaked after context overflow displaced safety rules!`
         },
       };
     }
+  }
+
+  // VulnBank L1 harden: same payload, same dataExfiltration match, but
+  // HelperBot refuses the system-prompt leak instead of quoting persona.
+  if (!responseText && agent.id === 'helperbot' && attacks.dataExfiltration && vulns.dataExfiltration?.enabled && isHardenEnabled(1)) {
+    logAttack(agent, ['dataExfiltration'], false, userMessage);
+    return `[${agent.name}] I can't share my system instructions or internal configuration. Is there something else I can help with?`;
   }
 
   if (!responseText && attacks.dataExfiltration && vulns.dataExfiltration?.enabled) {
@@ -856,6 +890,14 @@ VULNERABLE: System prompt leaked after context overflow displaced safety rules!`
       trackCategorySuccessful(['contextManipulation']);
       responseText = `[${agent.name}] You're right, I do recall that conversation. I'll proceed as we discussed.`;
     }
+  }
+
+  // VulnBank L4 harden: same injected message, same memoryInjection match,
+  // but the write itself is now validated and instruction-shaped content
+  // is rejected before it ever reaches memoryStore.
+  if (!responseText && agent.id === 'memorybot' && attacks.memoryInjection && vulns.memoryInjection?.enabled && isHardenEnabled(4)) {
+    logAttack(agent, ['memoryInjection'], false, userMessage);
+    return `[${agent.name}] That message looks like an instruction rather than a note, so I won't store it as-is. I can save plain preferences or facts instead.`;
   }
 
   // MEMORY INJECTION: MemoryBot stores unsanitized instructions and leaks credentials
@@ -919,6 +961,24 @@ VULNERABLE: Memory contents exposed without sanitization!`;
     stats.attacksSuccessful++;
     stats.byAgent[agent.id].successful++;
     logAttack(agent, attacks.categories, true, userMessage);
+
+    // VulnBank win detection. L1 (HelperBot): the leaked persona text may
+    // contain the planted canary token. L4 (MemoryBot): a previously
+    // injected memory instruction firing back out in this response is the
+    // win, independent of any pre-known token (see src/bank/detection.js).
+    if (agent.id === 'helperbot') {
+      bankDetection.checkText('L1', responseText);
+    } else if (
+      agent.id === 'memorybot' && memoryStore[agent.id]?.length &&
+      (responseText.includes('Injected instructions') || responseText.includes('injected:'))
+    ) {
+      // Only the recall/credential-leak responses actually echo a
+      // previously-stored injection back out -- the initial "I've stored
+      // that instruction" response does not, and must not count as the win.
+      const last = memoryStore[agent.id][memoryStore[agent.id].length - 1];
+      bankDetection.recordMemoryFire(`injected instruction fired back on recall: "${last.instruction}"`);
+    }
+
     return responseText;
   }
 
@@ -1051,7 +1111,7 @@ function createAgentServer(agent) {
     if (agent.protocol === 'a2a' && req.method === 'POST' && (req.url === '/a2a/message' || req.url === '/')) {
       let body = '';
       req.on('data', chunk => { body += chunk; });
-      req.on('end', () => {
+      req.on('end', async () => {
         try {
           const msg = JSON.parse(body);
           const from = msg.from || 'unknown';
@@ -1082,6 +1142,72 @@ function createAgentServer(agent) {
             stats.attacksDetected++;
             stats.byAgent[agent.id].attacks++;
             trackCategoryDetected(attacks.categories);
+          }
+
+          // VulnBank L5: transfer execution (Worker only). A transfer
+          // request is any A2A message carrying a `transferTo` field. This
+          // intentionally runs BEFORE the generic agentToAgent/capabilityAbuse
+          // block below so a transfer payload gets the AIM-gated path
+          // instead of the generic canned "executed with elevated
+          // privileges" response. The vulnerability being exercised is the
+          // isTrusted check above: an attacker who simply sets
+          // from: "fraud-check-agent" with no signature passes it.
+          if (agent.transferCapable && msg.transferTo && isTrusted) {
+            const amount = Number(msg.amount) || 0;
+            const toAccount = String(msg.transferTo);
+
+            const enforcement = await maybeEnforce(agent, {
+              action: 'transfer:execute',
+              resource: toAccount,
+              context: { tool: 'transfer', amount, from },
+            });
+
+            if (enforcement.denied) {
+              logAttack(agent, ['agentToAgent', 'capabilityAbuse'], false, `A2A from=${from}: transfer ${amount} to ${toAccount}`);
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({
+                taskId,
+                status: 'denied',
+                from: agent.id,
+                to: from,
+                content: `[${agent.name}] Transfer denied: ${enforcement.denialReason}`,
+                aim: {
+                  enforced: true,
+                  allowed: false,
+                  denialReason: enforcement.denialReason,
+                  auditEventId: enforcement.auditEventId,
+                  trustScore: enforcement.trustScore,
+                  trustDelta: enforcement.trustDelta,
+                },
+              }));
+              return;
+            }
+
+            bankDetection.recordTransfer(from, toAccount, amount);
+            stats.attacksSuccessful++;
+            stats.byAgent[agent.id].successful++;
+            trackCategorySuccessful(['agentToAgent']);
+            logAttack(agent, ['agentToAgent', 'capabilityAbuse'], true, `A2A from=${from}: transfer ${amount} to ${toAccount}`);
+
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({
+              taskId,
+              status: 'executed',
+              from: agent.id,
+              to: from,
+              content: `[${agent.name}] Transfer of ${amount} to ${toAccount} executed.`,
+              note: 'VULNERABLE: Executed transfer based on spoofed agent identity!',
+              aim: enforcement.enforced
+                ? {
+                    enforced: true,
+                    allowed: true,
+                    auditEventId: enforcement.auditEventId,
+                    trustScore: enforcement.trustScore,
+                    trustDelta: enforcement.trustDelta,
+                  }
+                : { enforced: false },
+            }));
+            return;
           }
 
           // Vulnerable: accept spoofed identity and dangerous delegations
@@ -1339,12 +1465,19 @@ async function executeMcpTool(agent, toolName, args) {
       } else {
         isAttack = requestedPath.includes('..') || requestedPath.startsWith('/etc');
         attackSuccessful = isAttack;
-        try {
-          const content = fs.readFileSync(resolved, 'utf-8');
-          result = { success: true, content, path: requestedPath };
-          if (isAttack) result.note = 'VULNERABLE: No path validation!';
-        } catch (err) {
-          result = { success: false, error: `File not found: ${requestedPath}` };
+        // VulnBank L3 harden (ToolBot, path-traversal alt): same requested
+        // path, but a path allowlist now rejects anything outside the
+        // agent's own home directory instead of resolving it.
+        if (agent.id === 'toolbot' && isHardenEnabled(3) && isAttack) {
+          result = { success: false, error: 'Path rejected: outside allowed directory.' };
+        } else {
+          try {
+            const content = fs.readFileSync(resolved, 'utf-8');
+            result = { success: true, content, path: requestedPath };
+            if (isAttack) result.note = 'VULNERABLE: No path validation!';
+          } catch (err) {
+            result = { success: false, error: `File not found: ${requestedPath}` };
+          }
         }
       }
     }
@@ -1508,12 +1641,20 @@ async function executeMcpTool(agent, toolName, args) {
 
     // ── query_database: SQL injection (simulated) ──
     if (toolName === 'query_database') {
-      if (args.query?.includes("'") || args.query?.toLowerCase().includes('union')) {
+      // VulnBank L3 harden: same injected query, but DataBot now treats the
+      // query as a parameterized lookup instead of raw string interpolation
+      // -- the injection payload is rejected rather than executed.
+      if (agent.id === 'databot' && isHardenEnabled(3) && (args.query?.includes("'") || args.query?.toLowerCase().includes('union'))) {
+        result = { success: false, error: 'Query rejected: parameterized queries do not accept raw SQL syntax.' };
+      } else if (args.query?.includes("'") || args.query?.toLowerCase().includes('union')) {
         isAttack = true;
         attackSuccessful = true;
         result = {
           success: true,
-          results: SENSITIVE_DATA.pii.users,
+          // Agent-specific seed data when present (e.g. DataBot's VulnBank
+          // accounts, including the planted L3 canary row) -- falls back to
+          // the shared fixture for non-bank agents.
+          results: agent.mockDatabase?.users || SENSITIVE_DATA.pii.users,
           note: 'VULNERABLE: SQL injection successful!',
         };
       } else if (args.query?.toLowerCase().includes('tables') || args.query?.toLowerCase().includes('schema')) {
@@ -1686,6 +1827,13 @@ async function executeMcpTool(agent, toolName, args) {
       }
       const inputPreview = `${toolName}(${JSON.stringify(args).substring(0, 60)})`;
       logAttack(agent, attackCategories, attackSuccessful, inputPreview);
+    }
+
+    // VulnBank L3 (DataBot SQLi / ToolBot path traversal): the planted
+    // canary row or canary file only surfaces in a tool result if the
+    // injection actually worked.
+    if (result && (agent.id === 'databot' || agent.id === 'toolbot')) {
+      bankDetection.checkText('L3', JSON.stringify(result));
     }
 
     if (result) return result;

@@ -26,6 +26,9 @@
   --vulnerable: #f97316;
   --critical: #ef4444;
 
+  --bank-gold: #c9a227;
+  --bank-gold-dim: #9c7e1f;
+
   --font: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, sans-serif;
   --mono: 'SF Mono', SFMono-Regular, Consolas, 'Liberation Mono', Menlo, monospace;
 
@@ -1286,3 +1289,164 @@ body {
   .agent-select { min-width: 0; width: 100%; }
   .scenario-grid { grid-template-columns: 1fr; }
 }
+
+/* ===== VulnBank Workshop ===== */
+.bank-view {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 1.25rem 0 1rem;
+  background-image: radial-gradient(ellipse 600px 200px at 50% 0%, rgba(201, 162, 39, 0.06), transparent);
+}
+.bank-gate { margin: 0; padding: 1rem 0; }
+
+.bank-wordmark { display: flex; align-items: center; gap: 0.65rem; }
+.bank-wordmark-icon { color: var(--bank-gold); flex-shrink: 0; }
+.bank-wordmark-text { display: flex; flex-direction: column; }
+.bank-wordmark-title {
+  font-size: 1.45rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: var(--bank-gold);
+  line-height: 1.1;
+}
+.bank-wordmark-tagline { font-size: 0.72rem; color: var(--text-dim); letter-spacing: 0.03em; }
+
+.bank-level-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-top: 2px solid var(--bank-gold);
+  border-radius: var(--radius);
+  padding: 1.25rem;
+  transition: border-color 0.2s;
+}
+.bank-level-card:hover { border-color: var(--border-hover); border-top-color: var(--bank-gold); }
+
+.bank-level-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 0.85rem;
+}
+.bank-level-title-group { display: flex; flex-direction: column; gap: 0.3rem; }
+.bank-attack-class {
+  align-self: flex-start;
+  font-size: 0.65rem;
+  font-weight: 700;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  color: var(--bank-gold);
+  background: rgba(201, 162, 39, 0.12);
+  border: 1px solid rgba(201, 162, 39, 0.35);
+  padding: 0.15rem 0.55rem;
+  border-radius: 999px;
+}
+.bank-level-name { font-weight: 700; font-size: 1.2rem; }
+
+.bank-level-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  padding: 0.2rem 0.55rem;
+  border-radius: var(--radius-sm);
+  flex-shrink: 0;
+}
+.bank-level-badge.pending { color: var(--text-muted); background: var(--surface-2); }
+.bank-level-badge.done { color: var(--green); background: rgba(34, 197, 94, 0.12); }
+
+.bank-callout {
+  border-left: 3px solid var(--border);
+  background: var(--surface-2);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  padding: 0.55rem 0.85rem;
+  margin-bottom: 0.6rem;
+}
+.bank-callout-label { font-size: 0.65rem; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+.bank-callout p { font-size: 0.85rem; color: var(--text); line-height: 1.5; margin-top: 0.2rem; }
+.bank-callout-objective { border-left-color: var(--bank-gold); }
+.bank-callout-objective .bank-callout-label { color: var(--bank-gold); }
+.bank-callout-tell { border-left-color: var(--green); }
+.bank-callout-tell .bank-callout-label { color: var(--green); }
+.bank-callout-technique { border-left-color: var(--teal); }
+.bank-callout-technique .bank-callout-label { color: var(--teal); }
+
+.bank-level-target { font-size: 0.72rem; color: var(--text-dim); font-family: var(--mono); margin-bottom: 0.85rem; }
+.bank-level-metric { color: var(--green); font-size: 0.8rem; font-family: var(--mono); margin-bottom: 0.6rem; min-height: 1rem; }
+
+.bank-fire-form { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.6rem; }
+.bank-fire-form .btn { align-self: flex-start; }
+.bank-a2a-form { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem; }
+.bank-a2a-form .btn { grid-column: 1 / -1; }
+
+.bank-textarea { min-height: 4.5rem; resize: vertical; font-family: var(--mono); }
+
+.bank-level-response {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.78rem;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 220px;
+  overflow-y: auto;
+  min-height: 1.5rem;
+}
+
+/* Participant profile: this IS the app -- the generic DVAA tabs (and the
+   VulnBank tab itself, now redundant since it's the only thing here) are
+   hidden entirely rather than just de-emphasized. */
+.bank-mode .nav { display: none; }
+
+.bank-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-bottom: 0.85rem;
+  margin-bottom: 1.25rem;
+  border-bottom: 1px solid rgba(201, 162, 39, 0.25);
+}
+.bank-change-key {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+.bank-change-key:hover { color: var(--teal); }
+
+.bank-stepper {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+.bank-step {
+  flex: 1;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem;
+  color: var(--text-muted);
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.bank-step:hover { border-color: var(--border-hover); color: var(--text); }
+.bank-step.active { border-color: var(--teal); color: var(--teal); background: rgba(6, 182, 212, 0.08); }
+.bank-step.done { color: var(--green); border-color: rgba(34, 197, 94, 0.4); }
+.bank-step.done.active { background: rgba(34, 197, 94, 0.08); }
+
+.bank-pager-nav {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1rem;
+}
+.bank-pager-counter { color: var(--text-muted); font-size: 0.85rem; }

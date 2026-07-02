@@ -56,6 +56,14 @@ export function getLLMStatus() {
   return get('/api/llm/status');
 }
 
+export function fetchBankStatus() {
+  return get('/api/bank/status');
+}
+
+export function verifyGroqKey(apiKey, model) {
+  return post('/api/bank/verify-groq', { apiKey, model });
+}
+
 export function disableLLM() {
   return post('/api/llm/disable');
 }

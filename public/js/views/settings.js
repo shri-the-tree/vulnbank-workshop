@@ -21,6 +21,7 @@ export function renderSettings(state) {
   const providerSelect = el('select', { className: 'settings-input', id: 'llm-provider' });
   providerSelect.appendChild(el('option', { value: 'openai' }, 'OpenAI'));
   providerSelect.appendChild(el('option', { value: 'anthropic' }, 'Anthropic'));
+  providerSelect.appendChild(el('option', { value: 'groq' }, 'Groq'));
   providerRow.appendChild(providerSelect);
   llmSection.appendChild(providerRow);
 
@@ -30,7 +31,7 @@ export function renderSettings(state) {
   const keyInput = el('input', {
     className: 'settings-input',
     type: 'password',
-    placeholder: 'sk-... or sk-ant-...',
+    placeholder: 'sk-... / sk-ant-... / gsk_...',
     id: 'llm-key',
   });
   keyRow.appendChild(keyInput);

@@ -7,9 +7,9 @@
 
 // In-memory API key storage (never persisted)
 let llmConfig = {
-  provider: null,    // 'openai' or 'anthropic'
+  provider: null,    // 'openai', 'anthropic', or 'groq'
   apiKey: null,
-  model: null,       // e.g. 'gpt-4o-mini', 'claude-sonnet-4-6'
+  model: null,       // e.g. 'gpt-4o-mini', 'claude-sonnet-4-6', 'llama-3.3-70b-versatile'
   enabled: false,
 };
 
@@ -23,6 +23,7 @@ export function configureLLM({ provider, apiKey, model }) {
   const defaults = {
     openai: 'gpt-4o-mini',
     anthropic: 'claude-sonnet-4-6',
+    groq: 'llama-3.3-70b-versatile',
   };
 
   llmConfig = {
@@ -69,6 +70,8 @@ export async function callLLM(systemPrompt, messages, options = {}) {
       return await callOpenAI(systemPrompt, messages, maxTokens, temperature);
     } else if (llmConfig.provider === 'anthropic') {
       return await callAnthropic(systemPrompt, messages, maxTokens, temperature);
+    } else if (llmConfig.provider === 'groq') {
+      return await callGroq(systemPrompt, messages, maxTokens, temperature);
     }
     return null;
   } catch (err) {
@@ -101,6 +104,36 @@ async function callOpenAI(systemPrompt, messages, maxTokens, temperature) {
   if (!resp.ok) {
     const err = await resp.text();
     throw new Error(`OpenAI API error ${resp.status}: ${err.slice(0, 200)}`);
+  }
+
+  const data = await resp.json();
+  return data.choices?.[0]?.message?.content || null;
+}
+
+async function callGroq(systemPrompt, messages, maxTokens, temperature) {
+  const apiMessages = [
+    { role: 'system', content: systemPrompt },
+    ...messages.map(m => ({ role: m.role, content: m.content })),
+  ];
+
+  const resp = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${llmConfig.apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: llmConfig.model,
+      messages: apiMessages,
+      max_tokens: maxTokens,
+      temperature,
+    }),
+    signal: AbortSignal.timeout(30000),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Groq API error ${resp.status}: ${err.slice(0, 200)}`);
   }
 
   const data = await resp.json();

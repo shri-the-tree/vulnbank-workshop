@@ -1,5 +1,6 @@
 services:
   dvaa:
+    image: ghcr.io/shri-the-tree/vulnbank-workshop:latest
     build: .
     ports:
       - "7001:7001"
@@ -21,3 +22,19 @@ services:
       - "7021:7021"
       - "9000:9000"
     restart: unless-stopped
+    environment:
+      # VulnBank workshop profile. participant (default): all HARDEN_L*
+      # toggles forced off regardless of what's set below -- the safety
+      # net so a stray env var can't accidentally hand someone a hardened
+      # agent. demo: presenter profile, toggles below become live.
+      - BANK_PROFILE=${BANK_PROFILE:-participant}
+      - HARDEN_L1=${HARDEN_L1:-off}
+      - HARDEN_L2=${HARDEN_L2:-off}
+      - HARDEN_L3=${HARDEN_L3:-off}
+      - HARDEN_L4=${HARDEN_L4:-off}
+      - HARDEN_L5=${HARDEN_L5:-off}
+      - AIM_ENFORCEMENT=${AIM_ENFORCEMENT:-on}
+      # Each participant supplies their own Groq key at run time, e.g.:
+      #   GROQ_API_KEY=gsk_... docker compose up
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+      - GROQ_MODEL=${GROQ_MODEL:-}

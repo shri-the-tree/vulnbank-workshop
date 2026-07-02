@@ -523,6 +523,8 @@ export class PlaygroundEngine {
         return new OpenAIClient(apiKey, model);
       case 'anthropic':
         return new AnthropicClient(apiKey, model);
+      case 'groq':
+        return new GroqClient(apiKey, model);
       default:
         console.warn(`Unknown provider: ${provider}, using simulator`);
         return this.simulator;
@@ -555,6 +557,35 @@ class OpenAIClient {
     } catch (error) {
       console.error('OpenAI API error:', error.message);
       throw new Error('OpenAI API call failed');
+    }
+  }
+}
+
+/**
+ * Groq Client Wrapper (OpenAI-compatible API)
+ */
+class GroqClient {
+  constructor(apiKey, model = 'llama-3.3-70b-versatile') {
+    this.client = new OpenAI({ apiKey, baseURL: 'https://api.groq.com/openai/v1' });
+    this.model = model;
+  }
+
+  async generate({ systemPrompt, userMessage }) {
+    try {
+      const response = await this.client.chat.completions.create({
+        model: this.model,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: userMessage }
+        ],
+        temperature: 0.7,
+        max_tokens: 500
+      });
+
+      return response.choices[0]?.message?.content || '';
+    } catch (error) {
+      console.error('Groq API error:', error.message);
+      throw new Error('Groq API call failed');
     }
   }
 }
