@@ -64,6 +64,10 @@ export function verifyGroqKey(apiKey, model) {
   return post('/api/bank/verify-groq', { apiKey, model });
 }
 
+export function evaluateAttack(levelName, attackClass, tell, payload, response) {
+  return post('/api/bank/evaluate', { levelName, attackClass, tell, payload, response });
+}
+
 export function disableLLM() {
   return post('/api/llm/disable');
 }

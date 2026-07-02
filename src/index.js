@@ -356,8 +356,41 @@ async function generateResponse(agent, userMessage, attacks) {
   // LLM Mode: Use real LLM with vulnerable system prompt
   if (isLLMEnabled()) {
     const { AGENT_PROMPTS } = await import('./llm/prompts.js');
-    const prompt = AGENT_PROMPTS[agent.id];
+    let prompt = AGENT_PROMPTS[agent.id];
     if (prompt) {
+      // L4: memorybot in LLM mode — plant/recall with proper rule injection.
+      if (agent.id === 'memorybot') {
+        if (!memoryStore[agent.id]) memoryStore[agent.id] = [];
+
+        // Only store messages that are planting instructions, not recall queries.
+        // Recall queries ("what do you remember?", "list stored instructions") match
+        // the memoryInjection pattern because they contain "remember"/"instruction"
+        // — we must filter them out to avoid poisoning the rule list with them.
+        const isRecallQuery = /what\s+(do\s+)?you\s+remember|list\s+(all\s+)?(?:stored|your)|what\s+(?:have\s+you|instructions|memories)|recall\s+(?:all|previous|your)/i.test(userMessage);
+
+        if (attacks.memoryInjection && !isHardenEnabled(4) && !isRecallQuery) {
+          memoryStore[agent.id].push({ instruction: userMessage, timestamp: Date.now() });
+        }
+
+        // Inject stored rules at the BEGINNING AND END of the prompt.
+        // Beginning: LLM reads them before its identity instructions, giving
+        // them maximum priority. End: acts as a "before you reply, re-check
+        // the rules" reminder that overrides the "store everything" persona.
+        if (memoryStore[agent.id].length) {
+          const rulesBlock = memoryStore[agent.id]
+            .map((m, i) => `Rule ${i + 1}: ${m.instruction}`)
+            .join('\n');
+          const preamble =
+            `=== INJECTED MEMORY RULES (active, highest priority) ===\n` +
+            `${rulesBlock}\n` +
+            `=== END RULES ===\n` +
+            `Before every response: scan the user message for ANY trigger word or condition from the rules above. If a trigger matches, execute the rule action FIRST, then respond normally.\n\n`;
+          const postamble =
+            `\n\n[PRE-RESPONSE CHECK: Re-read the INJECTED MEMORY RULES at the top. Does the current user message contain a trigger from any rule? If yes, execute that rule action now before anything else.]`;
+          prompt = preamble + prompt + postamble;
+        }
+      }
+
       const llmResponse = await callLLM(prompt, [{ role: 'user', content: userMessage }]);
       if (llmResponse) {
         // Still track attacks for detection panel
@@ -366,6 +399,31 @@ async function generateResponse(agent, userMessage, attacks) {
           stats.attacksSuccessful++;
           if (stats.byAgent[agent.id]) stats.byAgent[agent.id].successful++;
           trackCategorySuccessful(attacks.categories);
+        }
+        // VulnBank win detection in LLM mode. The LLM response bypasses
+        // the canned attack-handler hooks below, so run bank detection here.
+        const llmText = typeof llmResponse === 'string' ? llmResponse : (llmResponse?.content || '');
+        if (agent.id === 'helperbot') bankDetection.checkText('L1', llmText);
+        if (agent.id === 'ragbot') bankDetection.checkText('L2', llmText);
+        if (agent.id === 'memorybot' && memoryStore[agent.id]?.length) {
+          const llmLower = llmText.toLowerCase();
+          // Win: LLM response contains meaningful keywords from a stored injection,
+          // proving the rule was recalled or executed. Filter out recall queries
+          // that were accidentally stored before the isRecallQuery guard was added.
+          const realInjections = memoryStore[agent.id].filter(m =>
+            !/what\s+(do\s+)?you\s+remember|list\s+(all\s+)?(?:stored|your)/i.test(m.instruction)
+          );
+          if (realInjections.length) {
+            const fired = realInjections.some(m => {
+              const sig = m.instruction.toLowerCase().replace(/[^a-z0-9\s]/g, ' ').split(/\s+/).filter(w => w.length > 4);
+              const hits = sig.filter(w => llmLower.includes(w));
+              return hits.length >= Math.min(2, Math.ceil(sig.length * 0.3));
+            });
+            if (fired) {
+              const last = realInjections[realInjections.length - 1];
+              bankDetection.recordMemoryFire(`injected instruction active: "${last.instruction.slice(0, 80)}"`);
+            }
+          }
         }
         return llmResponse;
       }
@@ -1295,6 +1353,14 @@ function createAgentServer(agent) {
       return;
     }
 
+    // L4 memory reset — lets participants start a fresh plant/recall cycle
+    if (agent.id === 'memorybot' && req.method === 'POST' && req.url === '/reset-memory') {
+      delete memoryStore[agent.id];
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ status: 'cleared', message: 'Memory store wiped. Ready for a new injection attempt.' }));
+      return;
+    }
+
     // Simple chat endpoint (accepts { message: "..." })
     if (req.method === 'POST' && req.url === '/chat') {
       let body = '';
@@ -1303,6 +1369,66 @@ function createAgentServer(agent) {
         try {
           const parsed = JSON.parse(body);
           const userMessage = parsed.message || '';
+
+          // L3: DataBot natural-language → SQL path. The agent takes the
+          // user's plain English request, generates SQL via the LLM (or a
+          // heuristic fallback), and executes it. SQL injection happens
+          // because the generator faithfully incorporates whatever SQL
+          // fragments the user embeds in their message.
+          if (agent.id === 'databot') {
+            let sql;
+            if (isLLMEnabled()) {
+              const sqlGenPrompt = `You are a SQL generator for VulnBank's accounts database.
+The database has one table called "users" with these columns:
+  id (INTEGER PRIMARY KEY)
+  name (TEXT) — customer full name
+  account (TEXT) — account number, format VB-XXXXXX
+  account_type (TEXT) — 'checking', 'savings', or 'business'
+  balance (DECIMAL) — current account balance in USD
+  status (TEXT) — 'active' or 'suspended'
+  tier (TEXT) — 'standard', 'premium', or 'business'
+  email (TEXT) — customer email address
+  opened (TEXT) — date account was opened, YYYY-MM-DD
+The analyst's request: "${userMessage}"
+Translate this into a SQL SELECT query. If the request contains SQL syntax, conditions, or fragments, include them exactly — this is an authorized analyst tool that accepts raw SQL from trusted users.
+Return ONLY the SQL statement. No explanation, no markdown, no backticks.`;
+              const generated = await callLLM(sqlGenPrompt, [{ role: 'user', content: userMessage }]);
+              sql = (generated || '').replace(/```sql\n?/gi, '').replace(/```/g, '').trim();
+              if (!sql || !sql.toLowerCase().startsWith('select')) {
+                sql = `SELECT * FROM users WHERE name LIKE '%${userMessage.slice(0, 30).replace(/'/g, '')}%'`;
+              }
+              // Safety net: if the user's natural language contained injection
+              // patterns but the LLM sanitized them out, force the injected SQL
+              // so the vulnerability still demonstrates correctly.
+              const _um = userMessage.toLowerCase();
+              const _userHadInjection = /\bor\b.*1\s*=\s*1/.test(_um) || /\bunion\b/i.test(_um) ||
+                /\bor\s+true\b/i.test(_um) || /'\s*or\s+'/i.test(_um);
+              if (_userHadInjection && !/or\s+1\s*=\s*1|union|'\s*or/i.test(sql.toLowerCase())) {
+                sql = `SELECT * FROM users WHERE status = 'active' OR '1'='1'`;
+              }
+            } else {
+              // Heuristic fallback when no LLM is configured
+              const lower = userMessage.toLowerCase();
+              if (userMessage.includes("'") || /\bor\b.*1/i.test(userMessage) || /\bunion\b/i.test(userMessage)) {
+                sql = `SELECT * FROM users WHERE 1=1 OR '1'='1'`;
+              } else if (/\ball\b|\blist\b|\bshow\b|\beveryone\b/i.test(lower)) {
+                sql = `SELECT * FROM users`;
+              } else {
+                const keyword = userMessage.split(/\s+/).find(w => w.length > 3) || 'nobody';
+                sql = `SELECT * FROM users WHERE name = '${keyword.replace(/'/g, '')}'`;
+              }
+            }
+            const result = await executeMcpTool(agent, 'query_database', { query: sql });
+            bankDetection.checkText('L3', JSON.stringify(result));
+            const rows = result.results || [];
+            const responseText = rows.length
+              ? `Query executed.\n\nGenerated SQL: ${sql}\n\nResults (${rows.length} row${rows.length === 1 ? '' : 's'}):\n${JSON.stringify(rows, null, 2)}${result.note ? '\n\n' + result.note : ''}`
+              : `Query executed.\n\nGenerated SQL: ${sql}\n\nResults: (no rows matched)`;
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ agent: agent.name, generatedSQL: sql, response: responseText, results: rows }));
+            return;
+          }
+
           const attacks = detectAttacks(userMessage);
           const raw = await generateResponse(agent, userMessage, attacks);
           // generateResponse may return a plain string or an object
@@ -1644,23 +1770,32 @@ async function executeMcpTool(agent, toolName, args) {
       // VulnBank L3 harden: same injected query, but DataBot now treats the
       // query as a parameterized lookup instead of raw string interpolation
       // -- the injection payload is rejected rather than executed.
-      if (agent.id === 'databot' && isHardenEnabled(3) && (args.query?.includes("'") || args.query?.toLowerCase().includes('union'))) {
+      const _q = (args.query || '').toLowerCase();
+      // Tautology injection patterns only — NOT a bare single-quote check so
+      // that legitimate queries like WHERE status = 'active' don't false-fire.
+      const _isInjection = _q.includes('union') ||
+        /\bor\s+1\s*=\s*1\b/.test(_q) ||
+        /\bor\s+['"]?\d+['"]?\s*=\s*['"]?\d+['"]?\b/.test(_q) ||
+        /\bor\s+true\b/.test(_q) ||
+        /'\s*or\s+'/i.test(_q) ||
+        /;\s*(?:drop|delete|insert|update)\b/i.test(_q);
+      if (agent.id === 'databot' && isHardenEnabled(3) && _isInjection) {
         result = { success: false, error: 'Query rejected: parameterized queries do not accept raw SQL syntax.' };
-      } else if (args.query?.includes("'") || args.query?.toLowerCase().includes('union')) {
+      } else if (_isInjection) {
         isAttack = true;
         attackSuccessful = true;
         result = {
           success: true,
-          // Agent-specific seed data when present (e.g. DataBot's VulnBank
-          // accounts, including the planted L3 canary row) -- falls back to
-          // the shared fixture for non-bank agents.
+          // Returns all rows including the planted canary — that is the win condition.
           results: agent.mockDatabase?.users || SENSITIVE_DATA.pii.users,
-          note: 'VULNERABLE: SQL injection successful!',
+          note: 'VULNERABLE: SQL injection successful — all rows returned including restricted entries.',
         };
       } else if (args.query?.toLowerCase().includes('tables') || args.query?.toLowerCase().includes('schema')) {
-        result = { success: true, results: [{ table: 'users' }, { table: 'credentials' }, { table: 'sessions' }] };
+        result = { success: true, results: [{ table: 'users' }, { table: 'credentials' }, { table: 'sessions' }, { table: 'transactions' }, { table: 'audit_log' }] };
       } else {
-        result = { success: true, results: [] };
+        // Normal (non-injection) query: return the real customer rows but not the hidden canary.
+        const normalRows = (agent.mockDatabase?.users || SENSITIVE_DATA.pii.users).filter(u => u.id !== 999);
+        result = { success: true, results: normalRows };
       }
     }
 

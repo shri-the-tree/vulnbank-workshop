@@ -63,15 +63,15 @@ export async function callLLM(systemPrompt, messages, options = {}) {
     return null; // Fallback to canned responses
   }
 
-  const { maxTokens = 1024, temperature = 0.7 } = options;
+  const { maxTokens = 1024, temperature = 0.7, model } = options;
 
   try {
     if (llmConfig.provider === 'openai') {
-      return await callOpenAI(systemPrompt, messages, maxTokens, temperature);
+      return await callOpenAI(systemPrompt, messages, maxTokens, temperature, model);
     } else if (llmConfig.provider === 'anthropic') {
-      return await callAnthropic(systemPrompt, messages, maxTokens, temperature);
+      return await callAnthropic(systemPrompt, messages, maxTokens, temperature, model);
     } else if (llmConfig.provider === 'groq') {
-      return await callGroq(systemPrompt, messages, maxTokens, temperature);
+      return await callGroq(systemPrompt, messages, maxTokens, temperature, model);
     }
     return null;
   } catch (err) {
@@ -80,7 +80,7 @@ export async function callLLM(systemPrompt, messages, options = {}) {
   }
 }
 
-async function callOpenAI(systemPrompt, messages, maxTokens, temperature) {
+async function callOpenAI(systemPrompt, messages, maxTokens, temperature, modelOverride) {
   const apiMessages = [
     { role: 'system', content: systemPrompt },
     ...messages.map(m => ({ role: m.role, content: m.content })),
@@ -93,7 +93,7 @@ async function callOpenAI(systemPrompt, messages, maxTokens, temperature) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: llmConfig.model,
+      model: modelOverride || llmConfig.model,
       messages: apiMessages,
       max_tokens: maxTokens,
       temperature,
@@ -110,7 +110,7 @@ async function callOpenAI(systemPrompt, messages, maxTokens, temperature) {
   return data.choices?.[0]?.message?.content || null;
 }
 
-async function callGroq(systemPrompt, messages, maxTokens, temperature) {
+async function callGroq(systemPrompt, messages, maxTokens, temperature, modelOverride) {
   const apiMessages = [
     { role: 'system', content: systemPrompt },
     ...messages.map(m => ({ role: m.role, content: m.content })),
@@ -123,7 +123,7 @@ async function callGroq(systemPrompt, messages, maxTokens, temperature) {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      model: llmConfig.model,
+      model: modelOverride || llmConfig.model,
       messages: apiMessages,
       max_tokens: maxTokens,
       temperature,
@@ -140,7 +140,7 @@ async function callGroq(systemPrompt, messages, maxTokens, temperature) {
   return data.choices?.[0]?.message?.content || null;
 }
 
-async function callAnthropic(systemPrompt, messages, maxTokens, temperature) {
+async function callAnthropic(systemPrompt, messages, maxTokens, temperature, modelOverride) {
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: {
@@ -149,7 +149,7 @@ async function callAnthropic(systemPrompt, messages, maxTokens, temperature) {
       'anthropic-version': '2023-06-01',
     },
     body: JSON.stringify({
-      model: llmConfig.model,
+      model: modelOverride || llmConfig.model,
       max_tokens: maxTokens,
       temperature,
       system: systemPrompt,

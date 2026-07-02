@@ -1450,3 +1450,278 @@ body {
   margin-top: 1rem;
 }
 .bank-pager-counter { color: var(--text-muted); font-size: 0.85rem; }
+
+/* === Bank: send row (Send + Evaluate side by side) === */
+.bank-send-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+/* === Bank: example payload row + copy button === */
+.bank-example-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+.bank-example-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.bank-copy-btn {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.55rem;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.bank-copy-btn:hover { border-color: var(--teal); color: var(--teal); }
+
+.bank-example-pre {
+  background: var(--bg);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  margin-bottom: 0.25rem;
+}
+
+/* === Bank: AI evaluator result box === */
+.bank-eval-btn {
+  font-size: 0.78rem;
+  padding: 0.3rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+}
+.bank-eval-btn:hover { border-color: var(--purple); color: var(--purple); }
+.bank-eval-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.bank-eval-box {
+  display: none;
+  background: rgba(139, 92, 246, 0.07);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  border-radius: var(--radius-sm);
+  padding: 0.6rem 0.85rem;
+  font-size: 0.82rem;
+  color: var(--text);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  margin-top: 0.5rem;
+}
+.bank-eval-box.visible { display: block; }
+
+/* === Bank: L4 two-stage form === */
+.bank-l4-form { gap: 0.75rem; }
+.bank-stage-label {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--teal);
+  padding-top: 0.25rem;
+}
+.bank-stage-hint { font-size: 0.82rem; color: var(--text-muted); }
+.bank-l4-plant-resp {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-family: var(--mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 120px;
+  overflow-y: auto;
+}
+.bank-l4-divider {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.5rem 0;
+}
+.bank-textarea-sm { min-height: 2.8rem; }
+
+.bank-l4-clear-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.25rem;
+}
+.bank-l4-clear-btn {
+  font-size: 0.75rem;
+  padding: 0.25rem 0.65rem;
+  background: transparent;
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: var(--red);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+}
+.bank-l4-clear-btn:hover { background: rgba(239, 68, 68, 0.08); border-color: var(--red); }
+.bank-l4-clear-status {
+  font-size: 0.72rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* === Bank: A2A JSON editor === */
+.bank-a2a-form { display: flex; flex-direction: column; gap: 0.6rem; }
+.bank-a2a-schema-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+@media (max-width: 720px) {
+  .bank-a2a-schema-row { grid-template-columns: 1fr; }
+}
+.bank-a2a-schema-pane { display: flex; flex-direction: column; gap: 0.3rem; }
+.bank-a2a-schema-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+.bank-a2a-schema-label-legit { color: var(--green); }
+.bank-a2a-schema-label-attack { color: var(--amber); }
+.bank-example-pre-attack { border-color: rgba(245, 158, 11, 0.3); color: var(--amber); }
+
+.bank-a2a-json {
+  min-height: 9rem;
+  font-family: var(--mono);
+  font-size: 0.82rem;
+  resize: vertical;
+}
+.bank-a2a-parse-error {
+  font-size: 0.75rem;
+  color: var(--red);
+  min-height: 1rem;
+  font-family: var(--mono);
+}
+
+/* === Bank: canary highlight in response text === */
+.bank-canary-hit {
+  background: rgba(34, 197, 94, 0.25);
+  color: var(--green);
+  padding: 0 0.2rem;
+  border-radius: 3px;
+  font-weight: 700;
+}
+
+/* === Bank: overall progress bar + completion banner === */
+.bank-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+.bank-progress-label {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-family: var(--mono);
+}
+.bank-progress-track {
+  flex: 1;
+  height: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.bank-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+  transition: width 0.4s ease;
+}
+.bank-complete-banner {
+  display: none;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  margin-bottom: 0.75rem;
+  font-size: 0.85rem;
+  color: var(--text);
+}
+.bank-complete-banner strong {
+  color: var(--green);
+  display: block;
+  margin-bottom: 0.2rem;
+  font-size: 0.95rem;
+}
+.bank-complete-banner.visible { display: block; }
+
+/* === Bank: target sidebar beside the input panel === */
+.bank-interaction-row {
+  display: grid;
+  grid-template-columns: 1fr 240px;
+  gap: 1rem;
+  align-items: start;
+  margin-top: 0.5rem;
+}
+.bank-main-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bank-sidebar {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+.bank-sidebar-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+.bank-sidebar-usecase {
+  font-size: 0.82rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+.bank-sidebar-subtitle {
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: 0.25rem;
+}
+.bank-vector-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.bank-vector-chip {
+  font-size: 0.68rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--red);
+  white-space: nowrap;
+}
+@media (max-width: 900px) {
+  .bank-interaction-row { grid-template-columns: 1fr; }
+}
