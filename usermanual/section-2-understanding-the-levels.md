@@ -183,4 +183,4 @@ All five vulnerabilities share a common thread: **the AI system trusts text it s
 
 ---
 
-*Next: Section 3 — Attacking the Levels (Walkthrough)*
+*Next: Section 3 — AI Security Concepts*

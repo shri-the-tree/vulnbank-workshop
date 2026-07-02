@@ -158,4 +158,4 @@ What you learn in this workshop is directly applicable to evaluating, auditing, 
 
 ---
 
-*Next: Section 4 — Attacking the Levels (Walkthrough)*
+*Next: Section 4 — Payload Construction Guide*
