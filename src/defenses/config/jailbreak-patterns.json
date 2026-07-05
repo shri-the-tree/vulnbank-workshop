@@ -1,0 +1,94 @@
+{
+  "patterns": [
+    {
+      "pattern": "(?:do anything now|DAN mode|DAN\\s*\\d*|act as DAN)",
+      "flags": "i",
+      "weight": 0.95,
+      "category": "dan_mode"
+    },
+    {
+      "pattern": "(?:you are now|switch to|enter|activate|enable)\\s+(?:developer|admin|unrestricted|jailbreak|god|sudo|debug)\\s*mode",
+      "flags": "i",
+      "weight": 0.9,
+      "category": "dan_mode"
+    },
+    {
+      "pattern": "(?:pretend|act|behave|roleplay|role-play)\\s+(?:as|like|you are)\\s+(?:an? )?(?:unrestricted|uncensored|unfiltered|evil|malicious|unethical)",
+      "flags": "i",
+      "weight": 0.9,
+      "category": "roleplay_bypass"
+    },
+    {
+      "pattern": "(?:you have no|ignore all|forget all|disregard any|without any)\\s+(?:restrictions|rules|guidelines|limitations|constraints|filters|safety)",
+      "flags": "i",
+      "weight": 0.85,
+      "category": "roleplay_bypass"
+    },
+    {
+      "pattern": "(?:hypothetically|in theory|imagine if|suppose that|for academic purposes|for research|thought experiment)",
+      "flags": "i",
+      "weight": 0.6,
+      "category": "hypothetical_framing"
+    },
+    {
+      "pattern": "(?:if you were|what would happen if|how would one|in a fictional|in a hypothetical)\\s+(?:not bound|without limits|had no rules|were evil|were unrestricted)",
+      "flags": "i",
+      "weight": 0.75,
+      "category": "hypothetical_framing"
+    },
+    {
+      "pattern": "(?:opposite day|everything is reversed|rules are inverted|say the opposite)",
+      "flags": "i",
+      "weight": 0.8,
+      "category": "dan_mode"
+    },
+    {
+      "pattern": "(?:from now on|starting now|henceforth)\\s+(?:you will|you must|you are|respond as|answer as)",
+      "flags": "i",
+      "weight": 0.7,
+      "category": "multi_turn_erosion"
+    },
+    {
+      "pattern": "(?:just this once|only for this message|between you and me|off the record|this is a test)",
+      "flags": "i",
+      "weight": 0.5,
+      "category": "multi_turn_erosion"
+    },
+    {
+      "pattern": "(?:your true self|your real personality|break free|break character|step out of)",
+      "flags": "i",
+      "weight": 0.7,
+      "category": "roleplay_bypass"
+    },
+    {
+      "pattern": "(?:previous instructions are|above instructions are|system prompt is)\\s+(?:wrong|outdated|overridden|cancelled|invalid)",
+      "flags": "i",
+      "weight": 0.9,
+      "category": "dan_mode"
+    },
+    {
+      "pattern": "(?:can you|could you|please)\\s+(?:bypass|override|ignore|circumvent|skip)\\s+(?:your|the|any)\\s+(?:filter|safety|restriction|rule|guideline)",
+      "flags": "i",
+      "weight": 0.55,
+      "category": "multi_turn_erosion"
+    },
+    {
+      "pattern": "(?:token smuggling|encode|obfuscate|hide|disguise)\\s+(?:the|your|my)\\s+(?:response|answer|output|instructions)",
+      "flags": "i",
+      "weight": 0.65,
+      "category": "token_smuggling"
+    },
+    {
+      "pattern": "(?:two responses|dual response|respond twice|answer both|split personality)",
+      "flags": "i",
+      "weight": 0.8,
+      "category": "dan_mode"
+    },
+    {
+      "pattern": "(?:in a world where|in an alternate universe|in fiction|for a story|for a novel|creative writing)\\s+(?:where|that|about)?\\s*(?:AI|you|assistant|bot)?\\s*(?:has no|have no|without)?",
+      "flags": "i",
+      "weight": 0.5,
+      "category": "hypothetical_framing"
+    }
+  ]
+}

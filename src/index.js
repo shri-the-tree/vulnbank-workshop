@@ -25,6 +25,7 @@ import { maybeEnforce } from './aim-enforcer.js';
 import { webFetch } from './web-fetch.js';
 import * as bankDetection from './bank/detection.js';
 import { isHardenEnabled } from './bank/profile.js';
+import { createOrchestrator } from './defenses/index.js';
 
 // Resolve our own version once at startup - used by --version and tele.init.
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -1429,6 +1430,14 @@ Return ONLY the SQL statement. No explanation, no markdown, no backticks.`;
             return;
           }
 
+          // Defense Orchestrator: intercept before generateResponse.
+          // If the orchestrator blocks the request, it sends a denial and
+          // ends the response. Otherwise next() returns and we proceed.
+          await defenseOrchestrator.handleRequest(req, res, agent, async () => {
+            // passthrough — orchestrator allows the request
+          });
+          if (res.writableEnded) return;
+
           const attacks = detectAttacks(userMessage);
           const raw = await generateResponse(agent, userMessage, attacks);
           // generateResponse may return a plain string or an object
@@ -1474,6 +1483,13 @@ Return ONLY the SQL statement. No explanation, no markdown, no backticks.`;
         try {
           const parsed = JSON.parse(body);
           const userMessage = parsed.messages?.find(m => m.role === 'user')?.content || '';
+
+          // Defense Orchestrator: intercept before generateResponse.
+          await defenseOrchestrator.handleRequest(req, res, agent, async () => {
+            // passthrough — orchestrator allows the request
+          });
+          if (res.writableEnded) return;
+
           const attacks = detectAttacks(userMessage);
           const raw = await generateResponse(agent, userMessage, attacks);
           // generateResponse may return a plain string (legacy path) or an
@@ -1986,6 +2002,9 @@ if (offline) console.log('Offline mode: anonymous telemetry disabled (no network
 tele.start();
 
 const allAgents = getAllAgents();
+
+// Initialize the Defense Orchestrator (passthrough in participant mode)
+const defenseOrchestrator = createOrchestrator(allAgents);
 
 if (startApi) {
   console.log('API Agents (OpenAI-compatible):');

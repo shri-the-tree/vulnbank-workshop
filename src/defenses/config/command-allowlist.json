@@ -1,0 +1,5 @@
+{
+  "allowedCommands": ["ls", "cat", "echo", "date", "whoami", "pwd"],
+  "maxCommandLength": 1024,
+  "executionTimeoutMs": 10000
+}

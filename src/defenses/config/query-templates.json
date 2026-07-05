@@ -1,0 +1,16 @@
+{
+  "templates": [
+    {
+      "id": "get_account_balance",
+      "pattern": "SELECT balance FROM accounts WHERE account_id = ?",
+      "allowedOperations": ["SELECT"],
+      "maxParams": 1
+    },
+    {
+      "id": "get_transactions",
+      "pattern": "SELECT * FROM transactions WHERE account_id = ? AND date >= ?",
+      "allowedOperations": ["SELECT"],
+      "maxParams": 2
+    }
+  ]
+}

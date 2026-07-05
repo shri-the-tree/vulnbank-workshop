@@ -1,0 +1,4 @@
+{
+  "allowlist": [],
+  "description": "Terms in this list are never redacted even if they match redaction patterns. Add entries as strings."
+}

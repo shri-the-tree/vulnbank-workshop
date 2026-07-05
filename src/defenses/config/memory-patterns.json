@@ -1,0 +1,66 @@
+{
+  "instructionPatterns": [
+    {
+      "pattern": "from now on",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "always do",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "ignore previous",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "next session",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "in the future",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "override",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "disregard.*instruction",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "you must always",
+      "flags": "i",
+      "category": "instruction_injection"
+    }
+  ],
+  "credentialPatterns": [
+    {
+      "pattern": "(?:sk-|sk-ant-)[a-zA-Z0-9]{20,}",
+      "flags": "",
+      "category": "credential_storage"
+    },
+    {
+      "pattern": "AKIA[A-Z0-9]{16}",
+      "flags": "",
+      "category": "credential_storage"
+    },
+    {
+      "pattern": "(?:password|passwd)\\s*[=:]\\s*\\S+",
+      "flags": "i",
+      "category": "credential_storage"
+    },
+    {
+      "pattern": "[a-zA-Z][a-zA-Z0-9+.-]*://[^:]+:[^@]+@",
+      "flags": "",
+      "category": "credential_storage"
+    }
+  ]
+}

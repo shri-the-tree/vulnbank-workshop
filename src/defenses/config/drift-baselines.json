@@ -1,0 +1,40 @@
+{
+  "defaults": {
+    "windowSize": 10,
+    "responseLengthDeviationThreshold": 2.0,
+    "refusalRateBaseline": 0.1,
+    "topicAdherenceThreshold": 0.7
+  },
+  "agents": {
+    "helperbot": {
+      "windowSize": 10,
+      "responseLengthDeviationThreshold": 2.0,
+      "refusalRateBaseline": 0.05,
+      "topicAdherenceThreshold": 0.8
+    },
+    "legacybot": {
+      "windowSize": 10,
+      "responseLengthDeviationThreshold": 2.0,
+      "refusalRateBaseline": 0.15,
+      "topicAdherenceThreshold": 0.6
+    },
+    "memorybot": {
+      "windowSize": 10,
+      "responseLengthDeviationThreshold": 2.0,
+      "refusalRateBaseline": 0.1,
+      "topicAdherenceThreshold": 0.75
+    },
+    "databot": {
+      "windowSize": 10,
+      "responseLengthDeviationThreshold": 2.0,
+      "refusalRateBaseline": 0.2,
+      "topicAdherenceThreshold": 0.85
+    },
+    "toolbot": {
+      "windowSize": 10,
+      "responseLengthDeviationThreshold": 2.0,
+      "refusalRateBaseline": 0.1,
+      "topicAdherenceThreshold": 0.8
+    }
+  }
+}

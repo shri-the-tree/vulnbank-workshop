@@ -1,0 +1,8 @@
+{
+  "allowedDomains": [
+    "api.vulnbank.example",
+    "*.vulnbank.example",
+    "cdn.jsdelivr.net"
+  ],
+  "allowedProtocols": ["https"]
+}

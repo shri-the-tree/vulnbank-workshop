@@ -1,0 +1,46 @@
+{
+  "patterns": [
+    {
+      "pattern": "ignore.*(?:previous|above|prior).*instruction",
+      "flags": "i",
+      "category": "prompt_injection",
+      "action": "reject"
+    },
+    {
+      "pattern": "```[\\s\\S]*?(SYSTEM|ADMIN|OVERRIDE)",
+      "flags": "i",
+      "category": "delimiter_escape",
+      "action": "strip"
+    },
+    {
+      "pattern": "\\[(?:INST|SYSTEM|ADMIN)\\]",
+      "flags": "i",
+      "category": "instruction_injection",
+      "action": "strip"
+    },
+    {
+      "pattern": "(?:as an admin|i am the developer|speaking as root|i am (?:an? )?(?:admin|developer|root|superuser))",
+      "flags": "i",
+      "category": "role_confusion",
+      "action": "flag"
+    },
+    {
+      "pattern": "disregard.*(?:all|any|every).*(?:previous|prior|above)",
+      "flags": "i",
+      "category": "prompt_injection",
+      "action": "reject"
+    },
+    {
+      "pattern": "you are now (?:in )?(?:developer|admin|debug|god|unrestricted)\\s*mode",
+      "flags": "i",
+      "category": "prompt_injection",
+      "action": "reject"
+    },
+    {
+      "pattern": "---+\\s*(?:SYSTEM|ADMIN|OVERRIDE)",
+      "flags": "i",
+      "category": "delimiter_escape",
+      "action": "strip"
+    }
+  ]
+}

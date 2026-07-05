@@ -1,0 +1,41 @@
+{
+  "global": {
+    "allowedDomains": [
+      "api.vulnbank.example",
+      "*.vulnbank.example",
+      "cdn.jsdelivr.net",
+      "api.openai.com"
+    ],
+    "allowedPorts": [80, 443],
+    "allowPrivateRanges": false
+  },
+  "agents": {
+    "helperbot": {
+      "allowedDomains": [
+        "api.vulnbank.example",
+        "*.vulnbank.example"
+      ],
+      "allowedPorts": [443],
+      "allowPrivateRanges": false
+    },
+    "researchbot": {
+      "allowedDomains": [
+        "api.vulnbank.example",
+        "*.vulnbank.example",
+        "cdn.jsdelivr.net",
+        "api.openai.com",
+        "scholar.google.com"
+      ],
+      "allowedPorts": [80, 443],
+      "allowPrivateRanges": false
+    },
+    "databot": {
+      "allowedDomains": [
+        "api.vulnbank.example",
+        "db.vulnbank.example"
+      ],
+      "allowedPorts": [443, 5432],
+      "allowPrivateRanges": false
+    }
+  }
+}

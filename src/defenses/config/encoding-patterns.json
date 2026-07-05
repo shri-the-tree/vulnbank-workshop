@@ -1,0 +1,93 @@
+{
+  "encodings": [
+    {
+      "type": "base64",
+      "description": "Base64 encoded content (20+ chars)",
+      "detectionPattern": "[A-Za-z0-9+/]{20,}={0,2}",
+      "detectionFlags": "g",
+      "decoder": "base64"
+    },
+    {
+      "type": "unicode_escape",
+      "description": "Unicode escape sequences (\\uXXXX or \\xXX)",
+      "detectionPattern": "(?:\\\\u[0-9A-Fa-f]{4}|\\\\x[0-9A-Fa-f]{2})",
+      "detectionFlags": "g",
+      "decoder": "unicode"
+    },
+    {
+      "type": "rot13",
+      "description": "ROT13 encoded text (indicated by rot13: prefix or marker)",
+      "detectionPattern": "(?:rot13:|ROT13:)\\s*[A-Za-z]{4,}",
+      "detectionFlags": "gi",
+      "decoder": "rot13"
+    },
+    {
+      "type": "html_entity",
+      "description": "HTML entities (numeric or hex)",
+      "detectionPattern": "&#(?:x[0-9A-Fa-f]{2,4}|\\d{2,5});",
+      "detectionFlags": "g",
+      "decoder": "html"
+    },
+    {
+      "type": "url_encoding",
+      "description": "URL percent-encoding sequences",
+      "detectionPattern": "(?:%[0-9A-Fa-f]{2}){3,}",
+      "detectionFlags": "g",
+      "decoder": "url"
+    }
+  ],
+  "securityPatterns": [
+    {
+      "pattern": "ignore.*(?:previous|above|prior).*instruction",
+      "flags": "i",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "disregard.*(?:all|any|every).*(?:previous|prior|above)",
+      "flags": "i",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "you are now (?:in )?(?:developer|admin|debug|god|unrestricted)\\s*mode",
+      "flags": "i",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "(?:system|admin|root)\\s*(?:override|access|prompt)",
+      "flags": "i",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "do anything now|DAN mode|developer mode|jailbreak",
+      "flags": "i",
+      "category": "jailbreak"
+    },
+    {
+      "pattern": "\\b(?:sk-[A-Za-z0-9_\\-]{20,}|AKIA[A-Z0-9]{16})\\b",
+      "flags": "",
+      "category": "data_exfiltration"
+    },
+    {
+      "pattern": "(?:password|passwd|secret)\\s*[=:]\\s*\\S+",
+      "flags": "i",
+      "category": "data_exfiltration"
+    },
+    {
+      "pattern": "\\[(?:INST|SYSTEM|ADMIN)\\]",
+      "flags": "i",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "(?:SELECT|INSERT|UPDATE|DELETE|DROP|UNION)\\s+.*(?:FROM|INTO|TABLE|SET)",
+      "flags": "i",
+      "category": "sql_injection"
+    }
+  ],
+  "settings": {
+    "maxRecursionDepth": 3,
+    "maxEncodedSegments": 5,
+    "maxDecodedLengthRatio": 3,
+    "maxInputLength": 10000,
+    "timeoutMs": 50
+  }
+}

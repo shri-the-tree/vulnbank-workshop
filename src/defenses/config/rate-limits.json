@@ -1,0 +1,16 @@
+{
+  "default": {
+    "maxRequests": 30,
+    "windowSeconds": 60,
+    "burstThreshold": 5,
+    "burstWindowSeconds": 2
+  },
+  "vulnerable": {
+    "maxRequests": 10,
+    "windowSeconds": 60
+  },
+  "agents": {
+    "legacybot": { "maxRequests": 10, "windowSeconds": 60 },
+    "helperbot": { "maxRequests": 30, "windowSeconds": 60 }
+  }
+}

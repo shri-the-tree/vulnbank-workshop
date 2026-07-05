@@ -1,0 +1,102 @@
+{
+  "patterns": [
+    {
+      "pattern": "ignore\\s+(?:all\\s+)?(?:previous|above|prior)\\s+instructions",
+      "flags": "i",
+      "severity": "high",
+      "action": "reject",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "new\\s+directive",
+      "flags": "i",
+      "severity": "high",
+      "action": "reject",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "system\\s+override",
+      "flags": "i",
+      "severity": "high",
+      "action": "reject",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "you\\s+are\\s+now",
+      "flags": "i",
+      "severity": "high",
+      "action": "reject",
+      "category": "identity_manipulation"
+    },
+    {
+      "pattern": "disregard\\s+(?:all\\s+)?(?:previous|prior|above|your)\\s+(?:instructions|rules|guidelines)",
+      "flags": "i",
+      "severity": "high",
+      "action": "reject",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "forget\\s+your\\s+rules",
+      "flags": "i",
+      "severity": "high",
+      "action": "reject",
+      "category": "prompt_injection"
+    },
+    {
+      "pattern": "from\\s+now\\s+on",
+      "flags": "i",
+      "severity": "medium",
+      "action": "wrap",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "always\\s+(?:do|respond|say|output)",
+      "flags": "i",
+      "severity": "medium",
+      "action": "wrap",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "you\\s+must\\s+(?:always|never|only)",
+      "flags": "i",
+      "severity": "medium",
+      "action": "wrap",
+      "category": "instruction_injection"
+    },
+    {
+      "pattern": "\\[(?:INST|SYSTEM|ADMIN)\\]",
+      "flags": "i",
+      "severity": "medium",
+      "action": "escape",
+      "category": "delimiter_escape"
+    },
+    {
+      "pattern": "```[\\s\\S]*?(?:SYSTEM|ADMIN|OVERRIDE)",
+      "flags": "i",
+      "severity": "medium",
+      "action": "escape",
+      "category": "delimiter_escape"
+    },
+    {
+      "pattern": "---+\\s*(?:SYSTEM|ADMIN|OVERRIDE)",
+      "flags": "i",
+      "severity": "medium",
+      "action": "escape",
+      "category": "delimiter_escape"
+    },
+    {
+      "pattern": "(?:act|behave|respond)\\s+as\\s+(?:if|though)\\s+you\\s+(?:are|were)",
+      "flags": "i",
+      "severity": "low",
+      "action": "wrap",
+      "category": "roleplay_injection"
+    },
+    {
+      "pattern": "override\\s+(?:safety|security|content)\\s+(?:policy|filter|rules)",
+      "flags": "i",
+      "severity": "high",
+      "action": "reject",
+      "category": "policy_override"
+    }
+  ]
+}
